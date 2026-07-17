@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Code Generator</title>
+  <style>
+    :root { --bg: #0f1115; --card: #1a1d24; --fg: #e6e6e6; --accent: #4f8cff; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--fg);
+      display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    }
+    .card {
+      background: var(--card); padding: 2rem; border-radius: 16px;
+      width: min(440px, 92vw); box-shadow: 0 10px 40px rgba(0,0,0,.4);
+    }
+    h1 { font-size: 1.4rem; margin: 0 0 1rem; }
+    label { display: block; font-size: .85rem; margin-bottom: .4rem; opacity: .8; }
+    input[type=text] {
+      width: 100%; padding: .7rem .8rem; border-radius: 10px; border: 1px solid #333;
+      background: #0f1115; color: var(--fg); font-size: 1rem;
+    }
+    .row { display: flex; gap: .6rem; margin-top: 1rem; }
+    button {
+      flex: 1; padding: .7rem; border: 0; border-radius: 10px; cursor: pointer;
+      background: var(--accent); color: white; font-size: 1rem; font-weight: 600;
+    }
+    button.secondary { background: #2a2f3a; }
+    #qr { margin-top: 1.5rem; display: flex; justify-content: center; }
+    #qr svg { width: 220px; height: 220px; background: white; border-radius: 8px; padding: 8px; }
+    #msg { color: #ff6b6b; font-size: .85rem; margin-top: .6rem; min-height: 1rem; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>QR Code Generator</h1>
+    <label for="url">URL or text</label>
+    <input id="url" type="text" placeholder="https://example.com" autocomplete="off" />
+    <div id="msg"></div>
+    <div class="row">
+      <button id="gen">Generate</button>
+      <button id="dl" class="secondary hidden">Download SVG</button>
+      <button id="dlp" class="secondary hidden">Download PNG</button>
+    </div>
+    <div id="qr"></div>
+  </div>
+
+  <script>
+    const API = "https://qrcode-web.onrender.com/qr";
+    const $url = document.getElementById("url");
+    const $qr = document.getElementById("qr");
+    const $msg = document.getElementById("msg");
+    const $gen = document.getElementById("gen");
+    const $dl = document.getElementById("dl");
+    const $dlp = document.getElementById("dlp");
+
+    let lastSvg = "";
+    let lastData = "";
+
+    async function generate() {
+      const data = $url.value.trim();
+      $msg.textContent = "";
+      if (!data) { $msg.textContent = "Please enter a URL or text."; return; }
+      lastData = data;
+      $gen.disabled = true;
+      $gen.textContent = "Generating...";
+      try {
+        const res = await fetch(API + "?format=svg&data=" + encodeURIComponent(data));
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || ("HTTP " + res.status));
+        }
+        lastSvg = await res.text();
+        $qr.innerHTML = lastSvg;
+        $dl.classList.remove("hidden");
+        $dlp.classList.remove("hidden");
+      } catch (e) {
+        $msg.textContent = "Error: " + e.message;
+        $qr.innerHTML = "";
+        $dl.classList.add("hidden");
+        $dlp.classList.add("hidden");
+      } finally {
+        $gen.disabled = false;
+        $gen.textContent = "Generate";
+      }
+    }
+
+    function downloadSvg() {
+      if (!lastSvg) return;
+      const blob = new Blob([lastSvg], { type: "image/svg+xml" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "qrcode.svg";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function downloadPng() {
+      if (!lastData) return;
+      try {
+        const res = await fetch(API + "?format=png&data=" + encodeURIComponent(lastData));
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "qrcode.png";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        $msg.textContent = "PNG download failed: " + e.message;
+      }
+    }
+
+    $gen.addEventListener("click", generate);
+    $dl.addEventListener("click", downloadSvg);
+    $dlp.addEventListener("click", downloadPng);
+    $url.addEventListener("keydown", (e) => { if (e.key === "Enter") generate(); });
+  </script>
+</body>
+</html>
