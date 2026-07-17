@@ -1,10 +1,18 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import Response, PlainTextResponse
+from fastapi.middleware.cors import CORSMiddleware
 import qrcode
 import qrcode.image.svg
 from io import BytesIO
 
 app = FastAPI(title="QR Code API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def _make_svg(data: str, box_size: int, border: int) -> bytes:
